@@ -8,7 +8,7 @@ EasyBallot 视频处理上传脚本
   4. 上传至七牛云
   5. 输出 m3u8 的 HTTPS CDN 路径
 
-依赖: pip install python-dotenv
+依赖: pip install python-dotenv qiniu
 需要安装 ffmpeg（含 GPU 编码器支持）并在 PATH 中
 
 用法: python convert_video.py <视频文件路径>
@@ -231,54 +231,23 @@ def process_video(input_path: str, output_dir: str, encoder: str, encoder_label:
 
 
 # ---------- 七牛上传 ----------
-def generate_qiniu_token(key: str) -> str:
-    import hmac
-    import hashlib
-    import base64
-
-    deadline = int(datetime.now().timestamp()) + 3600
-    put_policy = json.dumps({
-        "scope": f"{QINIU_BUCKET}:{key}",
-        "deadline": deadline,
-        "fsizeLimit": 500 * 1024 * 1024,
-    })
-    encoded_policy = base64.urlsafe_b64encode(put_policy.encode()).decode().rstrip("=")
-    sign = hmac.new(
-        QINIU_SECRET_KEY.encode(), encoded_policy.encode(), hashlib.sha1
-    ).digest()
-    encoded_sign = base64.urlsafe_b64encode(sign).decode().rstrip("=")
-    return f"{QINIU_ACCESS_KEY}:{encoded_sign}:{encoded_policy}"
-
-
 def upload_file(local_path: str, qiniu_key: str) -> tuple:
-    import urllib.request
-    import urllib.error
+    """使用七牛 Python SDK 上传，支持断点续传、分片上传、自动重试"""
+    from qiniu import Auth, put_file
 
-    token = generate_qiniu_token(qiniu_key)
-    boundary = "----QiniuBoundary" + os.urandom(8).hex()
-    filename = os.path.basename(local_path)
+    auth = Auth(QINIU_ACCESS_KEY, QINIU_SECRET_KEY)
+    token = auth.upload_token(QINIU_BUCKET, qiniu_key, 3600)
 
-    with open(local_path, "rb") as f:
-        file_data = f.read()
-
-    body = b""
-    body += f"--{boundary}\r\nContent-Disposition: form-data; name=\"token\"\r\n\r\n{token}\r\n".encode()
-    body += f"--{boundary}\r\nContent-Disposition: form-data; name=\"key\"\r\n\r\n{qiniu_key}\r\n".encode()
-    body += f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\nContent-Type: application/octet-stream\r\n\r\n".encode()
-    body += file_data
-    body += f"\r\n--{boundary}--\r\n".encode()
-
-    req = urllib.request.Request(
-        QINIU_UPLOAD_URL,
-        data=body,
-        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+    # put_file 自动判断文件大小选择直传或分片上传
+    ret, info = put_file(
+        token, qiniu_key, local_path,
+        params={"x:a": "easyballot"},
+        mime_type=None,
     )
-    try:
-        resp = urllib.request.urlopen(req)
-        result = json.loads(resp.read().decode())
-        return True, result.get("key", qiniu_key)
-    except urllib.error.HTTPError as e:
-        return False, e.read().decode()[:200]
+
+    if ret is not None:
+        return True, ret.get("key", qiniu_key)
+    return False, str(info)
 
 
 # ---------- 入口 ----------
