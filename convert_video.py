@@ -66,17 +66,33 @@ def detect_gpu_encoder():
                  "-c:v", "h264_nvenc", "-f", "null", "-"],
                 capture_output=True, text=True, timeout=15
             )
-            if test.returncode == 0 and "nvenc" not in test.stderr.lower():
+            if test.returncode == 0:
                 print("[INFO] NVIDIA NVENC 编码器检测: OK")
                 return "h264_nvenc", "NVIDIA NVENC", ["-hwaccel", "cuda"]
+            # lavfi 测试失败但编码器在列表中，仍尝试使用
+            print("[INFO] NVIDIA NVENC 在列表中但测试未通过，仍尝试使用")
+            print(f"[DEBUG] NVENC test stderr: {test.stderr[-200:]}")
+            return "h264_nvenc", "NVIDIA NVENC (forced)", ["-hwaccel", "cuda"]
 
         if "h264_amf" in output:
-            print("[INFO] AMD AMF 编码器检测: OK")
-            return "h264_amf", "AMD AMF", []
+            test = subprocess.run(
+                ["ffmpeg", "-hide_banner", "-f", "lavfi", "-i", "color=c=black:s=2x2:d=0.1",
+                 "-c:v", "h264_amf", "-f", "null", "-"],
+                capture_output=True, text=True, timeout=15
+            )
+            if test.returncode == 0:
+                print("[INFO] AMD AMF 编码器检测: OK")
+                return "h264_amf", "AMD AMF", []
 
         if "h264_qsv" in output:
-            print("[INFO] Intel QuickSync 编码器检测: OK")
-            return "h264_qsv", "Intel QuickSync", []
+            test = subprocess.run(
+                ["ffmpeg", "-hide_banner", "-f", "lavfi", "-i", "color=c=black:s=2x2:d=0.1",
+                 "-c:v", "h264_qsv", "-f", "null", "-"],
+                capture_output=True, text=True, timeout=15
+            )
+            if test.returncode == 0:
+                print("[INFO] Intel QuickSync 编码器检测: OK")
+                return "h264_qsv", "Intel QuickSync", []
 
     except Exception:
         pass
