@@ -130,12 +130,11 @@ def process_video(input_path: str, output_dir: str, encoder: str, encoder_label:
         encoder_args = [
             "-c:v", "h264_nvenc",
             "-preset", "p4",
-            "-tune", "hq",
             "-rc", "vbr",
-            "-cq", "23",
-            "-b:v", "0",
-            "-maxrate", "2M",
-            "-bufsize", "4M",
+            "-b:v", "2M",
+            "-maxrate", "2.5M",
+            "-bufsize", "5M",
+            "-spatial-aq", "1",
         ]
     elif encoder in ("h264_amf", "h264_qsv"):
         encoder_args = [
