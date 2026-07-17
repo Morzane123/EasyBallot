@@ -250,7 +250,6 @@ def upload_file(local_path: str, qiniu_key: str, retries=3) -> tuple:
     for attempt in range(1, retries + 1):
         ret, info = put_file_v2(
             token, qiniu_key, local_path,
-            bucket=QINIU_BUCKET,
         )
         if ret is not None:
             return True, ret.get("key", qiniu_key)
