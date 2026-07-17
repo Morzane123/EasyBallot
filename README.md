@@ -16,13 +16,14 @@
 ## 功能特性
 
 - **自定义投票项目** -- 创建含多个投票项和选项的投票项目，支持自定义投票名称和选项内容
-- **富媒体支持** -- 选项支持图片和视频，通过七牛云对象存储上传，CDN 加速分发
-- **免登录投票** -- 投票者无需注册，通过设备指纹验证防止重复投票
-- **IP 限频** -- 服务端基于 IP 的限频机制，防止短时间内刷票
+- **富媒体支持** -- 选项支持图片和视频（含 HLS 流媒体），通过七牛云对象存储上传，CDN 加速分发
+- **视频处理工具** -- Python 脚本一键处理：720p 压缩、GPU 硬件加速编码、HLS 封装、自动上传七牛
+- **免登录投票** -- 投票者无需注册，通过 FingerprintJS 设备指纹验证防止重复投票
+- **IP 限频** -- 服务端 60 秒 IP 冷却机制，防止短时间内刷票
 - **隐私政策与同意确认** -- 内置隐私政策页面，首次投票需同意后方可进入
-- **核对码机制** -- 每次投票生成唯一核对码，投票者可据此独立核对投票结果
+- **核对码机制** -- 每次投票生成 6 位唯一核对码 + 投票者编号，供公示表格核对
 - **XLSX 导出** -- 管理员可导出含投票者编号、核对码、投票结果及统计汇总的 Excel 表格
-- **简约设计风格** -- 简洁现代的界面，支持暗色模式，响应式布局适配桌面与移动端
+- **简约设计风格** -- Apple Design 理念，SVG 图标，暗色模式，按下反馈动画，响应式布局
 
 ## 技术栈
 
@@ -30,13 +31,14 @@
 |------|------|
 | 前端 | React 19, TypeScript, Vite |
 | 路由 | React Router v7 |
-| 样式 | CSS 变量（暗色模式、响应式） |
+| 样式 | CSS 变量，prefers-reduced-motion，暗色模式 |
+| 视频播放 | hls.js（支持 HLS / m3u8 流媒体） |
 | 后端 | Node.js, Express, TypeScript |
 | 数据库 | better-sqlite3 |
-| 认证 | JWT（管理员）、设备指纹（投票者） |
-| 存储 | 七牛云 Kodo（对象存储） |
+| 认证 | JWT（管理员）、FingerprintJS 设备指纹（投票者） |
+| 存储 | 七牛云 Kodo，CDN 域名 cdn.tp.xuanjian.top |
 | 导出 | ExcelJS |
-| 安全 | FingerprintJS, IP 限频 |
+| 视频处理 | Python + ffmpeg（GPU 加速：NVENC / AMF / QSV） |
 
 ## 快速开始
 
@@ -45,6 +47,7 @@
 - Node.js 18+
 - npm 9+
 - 七牛云账号（用于媒体上传）
+- （可选）Python 3 + ffmpeg（用于视频处理）
 
 ### 安装与运行
 
@@ -74,6 +77,36 @@ npm run dev:client   # 启动前端开发服务器（热更新）
 1. 访问 `/admin/login`
 2. 使用 `.env` 中配置的账号密码登录（`ADMIN_USERNAME` / `ADMIN_PASSWORD`）
 3. 在管理面板中创建新的投票项目
+4. 为选项上传图片或视频（选项支持图片链接 / 视频链接 / HLS m3u8 地址）
+
+## 视频处理
+
+项目包含 `convert_video.py` 脚本，一键完成视频压缩、HLS 封装、上传七牛：
+
+```bash
+# 安装 Python 依赖
+pip install python-dotenv qiniu
+
+# 处理视频（自动检测 GPU 加速）
+python convert_video.py "D:/videos/song.mp4"
+```
+
+### 处理流程
+
+1. **分辨率压缩** -- 等比缩放至 720p
+2. **GPU 硬件编码** -- 自动检测 NVIDIA NVENC > AMD AMF > Intel QSV > CPU 回退
+3. **HLS 封装** -- 6 秒分片，VOD 模式，AAC 128kbps 音频
+4. **上传七牛** -- 断点续传、分片上传、3 次自动重试
+5. **输出 CDN 地址** -- 终端打印 m3u8 HTTPS 路径，直接填入管理后台
+
+### 编码器优先级
+
+| 编码器 | 适用显卡 | 加速效果 |
+|--------|---------|---------|
+| `h264_nvenc` | NVIDIA GTX/RTX | 含 `-hwaccel cuda` 硬解码 |
+| `h264_amf` | AMD Radeon | CQP 常量质量模式 |
+| `h264_qsv` | Intel 核显 | VBR 码率控制 |
+| `libx264` | CPU 回退 | CRF=23，兼容所有平台 |
 
 ## 部署
 
@@ -82,6 +115,7 @@ npm run dev:client   # 启动前端开发服务器（热更新）
 - **主机**: 115.190.153.44
 - **端口**: 3070
 - **域名**: [tp.xuanjian.top](https://tp.xuanjian.top)
+- **CDN 域名**: cdn.tp.xuanjian.top（七牛）
 - **进程管理**: PM2
 
 ### 一键部署
@@ -120,24 +154,44 @@ npm run deploy -- --user=deployer
 
 ```
 EasyBallot/
-├── client/                 # React 前端（Vite）
-│   ├── public/             # 静态资源
+├── client/                  # React 前端（Vite）
+│   ├── public/              # 静态资源（icon.png 等）
 │   └── src/
-│       ├── components/     # 可复用 UI 组件
-│       ├── pages/          # 页面组件
-│       │   └── admin/      # 管理后台页面
-│       ├── styles/         # 全局 CSS
-│       ├── api.ts          # API 客户端
-│       └── App.tsx         # 根组件与路由
-├── server/                 # Express 后端
+│       ├── components/      # 可复用组件（VideoPlayer, SvgIcons）
+│       ├── pages/           # 页面组件
+│       │   ├── admin/       # 管理后台（登录/仪表盘/创建/详情）
+│       │   ├── Home.tsx     # 首页
+│       │   ├── VotePage.tsx # 公开投票页 /:id
+│       │   └── PrivacyPolicy.tsx  # 隐私政策 /doc
+│       ├── styles/          # 全局 CSS（暗色模式、Apple Design）
+│       ├── api.ts           # Axios 实例（JWT 拦截）
+│       └── App.tsx          # 路由配置
+├── server/                  # Express 后端
 │   └── src/
-│       ├── db/             # 数据库初始化与查询
-│       ├── middleware/     # 认证与限频中间件
-│       └── routes/         # API 路由
-├── .env.template           # 环境变量模板
-├── deploy.js               # 自动化部署脚本
-└── package.json            # 根工作区脚本
+│       ├── db/              # better-sqlite3 初始化与表结构
+│       ├── middleware/       # JWT 认证、IP 限频
+│       └── routes/          # admin（投票管理/导出）、votes（公开投票）、upload（七牛 token）
+├── convert_video.py         # 视频处理上传脚本（GPU 加速 + HLS）
+├── deploy.js                # 一键部署脚本（SCP + PM2）
+├── nginx.conf               # Nginx 反向代理参考配置
+├── .env.template            # 环境变量模板
+└── package.json             # 根工作区脚本
 ```
+
+## 环境变量
+
+| 变量 | 必填 | 说明 |
+|------|------|------|
+| `PORT` | 否 | 服务端口（默认 3070） |
+| `ADMIN_USERNAME` | 否 | 管理员用户名（默认 admin） |
+| `ADMIN_PASSWORD` | **是** | 管理员密码 |
+| `JWT_SECRET` | **是** | JWT 签名密钥 |
+| `DB_PATH` | 否 | SQLite 数据库路径（默认 ./data/easyballot.db） |
+| `QINIU_ACCESS_KEY` | **是** | 七牛 AccessKey |
+| `QINIU_SECRET_KEY` | **是** | 七牛 SecretKey |
+| `QINIU_BUCKET` | **是** | 七牛存储空间名 |
+| `QINIU_DOMAIN` | **是** | 七牛 CDN 域名 |
+| `QINIU_REGION` | 否 | 七牛区域代码（z0/z1/z2/na0/as0，默认 as0） |
 
 ## 许可证
 
