@@ -190,6 +190,66 @@ EasyBallot/
 └── package.json             # 根工作区脚本
 ```
 
+## 数据库结构
+
+基于 better-sqlite3，使用 WAL 日志模式和外键级联删除。全文以 UUID 作为主键。
+
+### votes 投票项目表
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | TEXT PK | UUID 主键，公开投票页 `/[ID]` 即此 ID |
+| `name` | TEXT NOT NULL | 投票名称（如"七班歌唱大赛"） |
+| `created_at` | TEXT | 创建时间（ISO 8601） |
+| `updated_at` | TEXT | 更新时间 |
+
+### vote_items 投票项表
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | TEXT PK | UUID |
+| `vote_id` | TEXT FK | 关联 votes.id，级联删除 |
+| `title` | TEXT NOT NULL | 投票项标题（如"最佳单人男歌手"） |
+| `sort_order` | INTEGER | 排序序号 |
+| `created_at` | TEXT | 创建时间 |
+
+### options 选项表
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | TEXT PK | UUID |
+| `vote_item_id` | TEXT FK | 关联 vote_items.id，级联删除 |
+| `label` | TEXT NOT NULL | 选项名称（如"一号张三"） |
+| `image_url` | TEXT | 七牛 CDN 图片链接（可选） |
+| `video_url` | TEXT | 七牛 CDN 视频链接 / HLS m3u8 地址（可选） |
+| `sort_order` | INTEGER | 排序序号 |
+| `created_at` | TEXT | 创建时间 |
+
+### ballots 投票记录表
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | TEXT PK | UUID |
+| `vote_id` | TEXT FK | 关联 votes.id，级联删除 |
+| `device_fingerprint` | TEXT NOT NULL | FingerprintJS 设备指纹哈希（visitorId） |
+| `voter_number` | INTEGER NOT NULL | 投票者编号（该投票项目内自增） |
+| `verification_code` | TEXT NOT NULL | 6 位大写核对码 |
+| `choices` | TEXT NOT NULL | JSON 字符串 `{"voteItemId":"optionId",...}` |
+| `ip_address` | TEXT | 投票者 IP 地址 |
+| `created_at` | TEXT | 投票时间 |
+
+**唯一约束**: `(vote_id, device_fingerprint)` — 同一设备在同一投票项目中只能投一次。
+
+### 表关系
+
+```
+votes 1 ── N vote_items 1 ── N options
+  │
+  └────── N ballots
+```
+
+删除投票项目时，其下的投票项、选项、投票记录自动级联删除。
+
 ## 环境变量
 
 | 变量 | 必填 | 说明 |
