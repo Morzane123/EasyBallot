@@ -65,10 +65,10 @@ export default function VoteDetailPage() {
     if (!id) return;
     try {
       const res = await api.get(`/admin/votes/${id}/export`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
       const a = document.createElement('a');
       a.href = url;
-      a.download = `vote-${id}.csv`;
+      a.download = `${vote?.name || id}-投票结果.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();

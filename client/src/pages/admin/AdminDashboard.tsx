@@ -87,13 +87,13 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleExport = async (id: string) => {
+  const handleExport = async (id: string, name: string) => {
     try {
       const res = await api.get(`/admin/votes/${id}/export`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
       const a = document.createElement('a');
       a.href = url;
-      a.download = `vote-${id}.csv`;
+      a.download = `${name}-投票结果.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -157,7 +157,7 @@ export default function AdminDashboard() {
                   <EyeIcon />
                   查看
                 </Link>
-                <button onClick={() => handleExport(vote.id)} className="btn-secondary btn-sm">
+                <button onClick={() => handleExport(vote.id, vote.name)} className="btn-secondary btn-sm">
                   <DownloadIcon />
                   导出
                 </button>
