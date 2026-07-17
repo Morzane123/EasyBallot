@@ -1,0 +1,65 @@
+:root {
+  --primary: #004AAD;
+  --primary-hover: #003d91;
+  --bg: #ffffff;
+  --bg-secondary: #f5f7fa;
+  --text: #1a1a2e;
+  --text-secondary: #6b7280;
+  --border: #e5e7eb;
+  --radius: 8px;
+  --success: #10b981;
+  --error: #ef4444;
+  --warning: #f59e0b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1A1B1D;
+    --bg-secondary: #25262b;
+    --text: #e0e0e0;
+    --text-secondary: #9ca3af;
+    --border: #374151;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container { max-width: 800px; margin: 0 auto; padding: 24px 16px; }
+
+input, textarea, select {
+  width: 100%; padding: 12px; border: 1px solid var(--border);
+  border-radius: var(--radius); font-size: 16px; background: var(--bg);
+  color: var(--text); font-family: inherit;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,74,173,0.1);
+}
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border: none; border-radius: var(--radius);
+  font-size: 15px; font-weight: 500; cursor: pointer;
+  font-family: inherit; transition: all 0.15s ease;
+}
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-danger { background: var(--error); color: #fff; }
+.btn-danger:hover { opacity: 0.9; }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+
+.card {
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px;
+}
+
+.error-msg { color: var(--error); font-size: 14px; margin-top: 8px; }
+.success-msg { color: var(--success); font-size: 14px; margin-top: 8px; }
