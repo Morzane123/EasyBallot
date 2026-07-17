@@ -51,22 +51,40 @@ TARGET_HEIGHT = 720
 
 # ---------- GPU 编码器检测 ----------
 def detect_gpu_encoder():
-    """检测可用的 GPU 硬件编码器，返回编码器名称和标签"""
+    """检测可用的 GPU 硬件编码器，返回编码器名称、标签和加速参数"""
     try:
         result = subprocess.run(
-            ["ffmpeg", "-encoders"], capture_output=True, text=True, timeout=10
+            ["ffmpeg", "-hide_banner", "-encoders"],
+            capture_output=True, text=True, timeout=10
         )
-        encoders = result.stdout
+        output = result.stdout
 
-        if "h264_nvenc" in encoders:
-            return "h264_nvenc", "NVIDIA NVENC"
-        if "h264_amf" in encoders:
-            return "h264_amf", "AMD AMF"
-        if "h264_qsv" in encoders:
-            return "h264_qsv", "Intel QuickSync"
+        # 直接尝试用 NVENC 编码一帧测试是否真正可用
+        if "h264_nvenc" in output:
+            test = subprocess.run(
+                ["ffmpeg", "-hide_banner", "-f", "lavfi", "-i", "color=c=black:s=2x2:d=0.1",
+                 "-c:v", "h264_nvenc", "-f", "null", "-"],
+                capture_output=True, text=True, timeout=15
+            )
+            if test.returncode == 0 and "nvenc" not in test.stderr.lower():
+                print("[INFO] NVIDIA NVENC 编码器检测: OK")
+                return "h264_nvenc", "NVIDIA NVENC", ["-hwaccel", "cuda"]
+
+        if "h264_amf" in output:
+            print("[INFO] AMD AMF 编码器检测: OK")
+            return "h264_amf", "AMD AMF", []
+
+        if "h264_qsv" in output:
+            print("[INFO] Intel QuickSync 编码器检测: OK")
+            return "h264_qsv", "Intel QuickSync", []
+
     except Exception:
         pass
-    return "libx264", "CPU (libx264)"
+
+    print("[INFO] 未检测到 GPU 编码器，使用 CPU")
+    print("[TIP]  如需 GPU 加速，请安装包含 NVENC 的 ffmpeg 版本")
+    print("[TIP]  NVIDIA: https://www.gyan.dev/ffmpeg/builds/ (选 full_build)")
+    return "libx264", "CPU (libx264)", []
 
 
 # ---------- ffmpeg ----------
@@ -103,7 +121,7 @@ def get_video_info(input_path: str) -> dict:
     }
 
 
-def process_video(input_path: str, output_dir: str, encoder: str, encoder_label: str) -> str:
+def process_video(input_path: str, output_dir: str, encoder: str, encoder_label: str, hwaccel_args: list) -> str:
     """处理视频：GPU 加速压缩 + HLS 封装"""
     video_info = get_video_info(input_path)
     orig_w, orig_h = video_info["width"], video_info["height"]
@@ -156,6 +174,7 @@ def process_video(input_path: str, output_dir: str, encoder: str, encoder_label:
     print(f"[2/3] 编码 + HLS 封装...")
     cmd = [
         "ffmpeg", "-y",
+        *hwaccel_args,
         "-i", input_path,
         "-vf", scale_filter,
         *encoder_args,
@@ -176,7 +195,7 @@ def process_video(input_path: str, output_dir: str, encoder: str, encoder_label:
         # GPU 失败时自动回退 CPU
         if encoder != "libx264":
             print(f"[WARN] {encoder_label} 编码失败，回退 CPU 编码...")
-            return process_video(input_path, output_dir, "libx264", "CPU (libx264)")
+            return process_video(input_path, output_dir, "libx264", "CPU (libx264)", [])
         print(f"[ERROR] ffmpeg 失败:\n{result.stderr}")
         sys.exit(1)
 
@@ -256,7 +275,7 @@ def main():
 
     check_ffmpeg()
 
-    encoder, encoder_label = detect_gpu_encoder()
+    encoder, encoder_label, hwaccel_args = detect_gpu_encoder()
 
     input_name = Path(input_path).stem
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -267,7 +286,7 @@ def main():
         print(f"  处理: {os.path.basename(input_path)}")
         print(f"{'='*50}")
 
-        m3u8_path = process_video(input_path, tmpdir, encoder, encoder_label)
+        m3u8_path = process_video(input_path, tmpdir, encoder, encoder_label, hwaccel_args)
         ts_files = sorted(Path(tmpdir).glob("segment_*.ts"))
 
         print(f"\n[3/3] 上传七牛 ({QINIU_BUCKET}, {QINIU_REGION})...")
