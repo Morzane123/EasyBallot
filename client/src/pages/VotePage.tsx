@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import axios from 'axios'
 import FingerprintJS from '@fingerprintjs/fingerprintjs'
 import { CheckIcon, HomeIcon } from '../components/SvgIcons'
+import VideoPlayer from '../components/VideoPlayer'
 
 function getCookie(name: string): string | null {
   const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()\[\]\\\/+^])/g, '\\$1') + '=([^;]*)'))
@@ -222,16 +223,7 @@ export default function VotePage() {
 
           {item.video_url && (
             <div style={{ marginBottom: '16px' }}>
-              <video
-                src={item.video_url}
-                controls
-                style={{
-                  width: '100%',
-                  maxHeight: '400px',
-                  borderRadius: 'var(--radius)',
-                  background: '#000',
-                }}
-              />
+              <VideoPlayer src={item.video_url} />
             </div>
           )}
 
@@ -286,16 +278,7 @@ export default function VotePage() {
                   )}
                   {option.video_url && (
                     <div style={{ marginTop: '8px' }}>
-                      <video
-                        src={option.video_url}
-                        controls
-                        style={{
-                          width: '100%',
-                          maxHeight: '300px',
-                          borderRadius: 'var(--radius)',
-                          background: '#000',
-                        }}
-                      />
+                      <VideoPlayer src={option.video_url} style={{ maxHeight: '300px' }} />
                     </div>
                   )}
                 </div>
