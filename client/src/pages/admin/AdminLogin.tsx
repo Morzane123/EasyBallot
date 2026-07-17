@@ -27,7 +27,7 @@ export default function AdminLogin() {
       localStorage.setItem('admin_token', res.data.token);
       navigate('/admin');
     } catch {
-      setError('Invalid credentials. Please try again.');
+      setError('用户名或密码错误');
     } finally {
       setLoading(false);
     }
@@ -44,14 +44,14 @@ export default function AdminLogin() {
       <div className="card" style={{ width: '100%', maxWidth: 400 }}>
         <div style={{ textAlign: 'center', marginBottom: 24, color: 'var(--primary)' }}>
           <LockIcon />
-          <h1 style={{ marginTop: 8, fontSize: '1.5rem', fontWeight: 600 }}>Admin Login</h1>
+          <h1 style={{ marginTop: 8, fontSize: '1.5rem', fontWeight: 600 }}>管理员登录</h1>
         </div>
 
         {error && <div className="error-msg">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="username">Username</label>
+            <label htmlFor="username">用户名</label>
             <input
               id="username"
               type="text"
@@ -62,7 +62,7 @@ export default function AdminLogin() {
             />
           </div>
           <div className="form-group">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">密码</label>
             <input
               id="password"
               type="password"
@@ -77,7 +77,7 @@ export default function AdminLogin() {
             disabled={loading}
             style={{ width: '100%' }}
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? '登录中...' : '登录'}
           </button>
         </form>
       </div>

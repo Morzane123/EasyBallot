@@ -160,7 +160,7 @@ export default function CreateVote() {
       const fileUrl = `${uploadDomain}/${uploadKey}`;
       updateOption(itemId, optionId, field, fileUrl);
     } catch {
-      setError('Upload failed. Please try again.');
+      setError('上传失败，请重试');
     } finally {
       setUploading(null);
     }
@@ -185,21 +185,21 @@ export default function CreateVote() {
     setError('');
 
     if (!name.trim()) {
-      setError('Vote name is required.');
+      setError('请输入投票名称');
       return;
     }
     for (const item of items) {
       if (!item.title.trim()) {
-        setError('All items must have a title.');
+        setError('所有投票项都必须填写标题');
         return;
       }
       if (item.options.length < 2) {
-        setError('Each item must have at least 2 options.');
+        setError('每个投票项至少需要 2 个选项');
         return;
       }
       for (const opt of item.options) {
         if (!opt.label.trim()) {
-          setError('All options must have a label.');
+          setError('所有选项都必须填写名称');
           return;
         }
       }
@@ -222,7 +222,7 @@ export default function CreateVote() {
       await api.post('/admin/votes', payload);
       navigate('/admin');
     } catch {
-      setError('Failed to create vote.');
+      setError('创建投票失败，请重试');
     } finally {
       setSubmitting(false);
     }
@@ -233,9 +233,9 @@ export default function CreateVote() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
         <Link to="/admin" className="btn-secondary">
           <ArrowLeftIcon />
-          Back
+          返回
         </Link>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Create New Vote</h1>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>创建新投票</h1>
       </div>
 
       {error && <div className="error-msg">{error}</div>}
@@ -243,13 +243,13 @@ export default function CreateVote() {
       <form onSubmit={handleSubmit}>
         <div className="card" style={{ marginBottom: 20 }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label htmlFor="vote-name">Vote Name</label>
+            <label htmlFor="vote-name">投票名称</label>
             <input
               id="vote-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Enter vote name"
+              placeholder="请输入投票名称"
               required
             />
           </div>
@@ -258,33 +258,33 @@ export default function CreateVote() {
         {items.map((item, iIdx) => (
           <div key={item.id} className="card" style={{ marginBottom: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Item {iIdx + 1}</h3>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>投票项 {iIdx + 1}</h3>
               {items.length > 1 && (
                 <button type="button" onClick={() => removeItem(item.id)} className="btn-danger btn-sm">
                   <TrashIcon />
-                  Remove Item
+                  删除投票项
                 </button>
               )}
             </div>
 
             <div className="form-group">
-              <label htmlFor={`item-title-${item.id}`}>Title</label>
+              <label htmlFor={`item-title-${item.id}`}>标题</label>
               <input
                 id={`item-title-${item.id}`}
                 type="text"
                 value={item.title}
                 onChange={(e) => updateItemTitle(item.id, e.target.value)}
-                placeholder="Enter item title"
+                placeholder="请输入投票项标题"
                 required
               />
             </div>
 
             <div style={{ marginTop: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontWeight: 500, fontSize: '0.95rem' }}>Options</span>
+                <span style={{ fontWeight: 500, fontSize: '0.95rem' }}>选项</span>
                 <button type="button" onClick={() => addOption(item.id)} className="btn-secondary btn-sm">
                   <PlusIcon />
-                  Add Option
+                  添加选项
                 </button>
               </div>
 
@@ -300,7 +300,7 @@ export default function CreateVote() {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                       <span style={{ fontWeight: 500, fontSize: '0.9rem' }}>
-                        Option {String.fromCharCode(65 + oIdx)}
+                        选项 {String.fromCharCode(65 + oIdx)}
                       </span>
                       {item.options.length > 2 && (
                         <button
@@ -314,7 +314,7 @@ export default function CreateVote() {
                     </div>
 
                     <div className="form-group">
-                      <label htmlFor={`opt-label-${item.id}-${opt.id}`}>Label</label>
+                      <label htmlFor={`opt-label-${item.id}-${opt.id}`}>选项名称</label>
                       <input
                         id={`opt-label-${item.id}-${opt.id}`}
                         type="text"
@@ -322,7 +322,7 @@ export default function CreateVote() {
                         onChange={(e) =>
                           updateOption(item.id, opt.id, 'label', e.target.value)
                         }
-                        placeholder="Enter option label"
+                        placeholder="请输入选项名称"
                         required
                       />
                     </div>
@@ -333,7 +333,7 @@ export default function CreateVote() {
                           htmlFor={`img-url-${item.id}-${opt.id}`}
                           style={{ display: 'block', marginBottom: 4, fontWeight: 500, fontSize: '0.85rem' }}
                         >
-                          Image URL
+                          图片链接
                         </label>
                         <div style={{ display: 'flex', gap: 8 }}>
                           <input
@@ -351,7 +351,7 @@ export default function CreateVote() {
                             onClick={() => triggerFileInput('image', `img-${item.id}-${opt.id}`)}
                             className="btn-secondary btn-sm"
                             disabled={uploading === `img-${item.id}-${opt.id}`}
-                            title="Upload image"
+                            title="上传图片"
                           >
                             <UploadIcon />
                             {uploading === `img-${item.id}-${opt.id}` ? '...' : ''}
@@ -378,7 +378,7 @@ export default function CreateVote() {
                           htmlFor={`vid-url-${item.id}-${opt.id}`}
                           style={{ display: 'block', marginBottom: 4, fontWeight: 500, fontSize: '0.85rem' }}
                         >
-                          Video URL
+                          视频链接
                         </label>
                         <div style={{ display: 'flex', gap: 8 }}>
                           <input
@@ -396,7 +396,7 @@ export default function CreateVote() {
                             onClick={() => triggerFileInput('video', `vid-${item.id}-${opt.id}`)}
                             className="btn-secondary btn-sm"
                             disabled={uploading === `vid-${item.id}-${opt.id}`}
-                            title="Upload video"
+                            title="上传视频"
                           >
                             <UploadIcon />
                             {uploading === `vid-${item.id}-${opt.id}` ? '...' : ''}
@@ -421,14 +421,14 @@ export default function CreateVote() {
 
                     {opt.image_url && (
                       <div style={{ marginTop: 8, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                        Image: {opt.image_url.length > 60
+                        图片: {opt.image_url.length > 60
                           ? opt.image_url.slice(0, 60) + '...'
                           : opt.image_url}
                       </div>
                     )}
                     {opt.video_url && (
                       <div style={{ marginTop: 4, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                        Video: {opt.video_url.length > 60
+                        视频: {opt.video_url.length > 60
                           ? opt.video_url.slice(0, 60) + '...'
                           : opt.video_url}
                       </div>
@@ -443,10 +443,10 @@ export default function CreateVote() {
         <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
           <button type="button" onClick={addItem} className="btn-secondary">
             <PlusIcon />
-            Add Item
+            添加投票项
           </button>
           <button type="submit" disabled={submitting} className="btn-primary">
-            {submitting ? 'Creating...' : 'Create Vote'}
+            {submitting ? '创建中...' : '创建投票'}
           </button>
         </div>
       </form>

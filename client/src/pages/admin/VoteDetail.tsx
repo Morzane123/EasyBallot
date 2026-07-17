@@ -3,23 +3,23 @@ import { useParams, Link } from 'react-router-dom';
 import api from '../../api.ts';
 
 interface Option {
-  _id: string;
+  id: string;
   label: string;
   image_url?: string;
   video_url?: string;
 }
 
 interface VoteItem {
-  _id: string;
+  id: string;
   title: string;
   options: Option[];
 }
 
 interface VoteDetail {
-  _id: string;
+  id: string;
   name: string;
   items: VoteItem[];
-  ballotCount: number;
+  ballot_count: number;
 }
 
 function DownloadIcon() {
@@ -53,7 +53,7 @@ export default function VoteDetailPage() {
         const res = await api.get(`/admin/votes/${id}`);
         setVote(res.data);
       } catch {
-        setError('Failed to load vote details.');
+        setError('加载投票详情失败');
       } finally {
         setLoading(false);
       }
@@ -74,14 +74,14 @@ export default function VoteDetailPage() {
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch {
-      setError('Failed to export vote.');
+      setError('导出失败');
     }
   };
 
   if (loading) {
     return (
       <div className="container">
-        <p style={{ color: 'var(--text-secondary)' }}>Loading...</p>
+        <p style={{ color: 'var(--text-secondary)' }}>加载中...</p>
       </div>
     );
   }
@@ -89,10 +89,10 @@ export default function VoteDetailPage() {
   if (error || !vote) {
     return (
       <div className="container">
-        <div className="error-msg">{error || 'Vote not found.'}</div>
+        <div className="error-msg">{error || '投票项目不存在'}</div>
         <Link to="/admin" className="btn-secondary">
           <ArrowLeftIcon />
-          Back to Votes
+          返回投票列表
         </Link>
       </div>
     );
@@ -104,18 +104,18 @@ export default function VoteDetailPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <Link to="/admin" className="btn-secondary">
             <ArrowLeftIcon />
-            Back
+            返回
           </Link>
           <div>
             <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>{vote.name}</h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-              {vote.ballotCount ?? 0} ballots
+              {vote.ballot_count ?? 0} 票
             </p>
           </div>
         </div>
         <button onClick={handleExport} className="btn-primary">
           <DownloadIcon />
-          Export Results
+          导出结果
         </button>
       </div>
 
@@ -123,14 +123,14 @@ export default function VoteDetailPage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         {vote.items.map((item, idx) => (
-          <div key={item._id} className="card">
+          <div key={item.id} className="card">
             <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 12 }}>
-              Item {idx + 1}: {item.title}
+              投票项 {idx + 1}: {item.title}
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {item.options.map((opt, oIdx) => (
                 <div
-                  key={opt._id}
+                  key={opt.id}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -146,12 +146,12 @@ export default function VoteDetailPage() {
                   <span style={{ flex: 1 }}>{opt.label}</span>
                   {opt.image_url && (
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      [Image]
+                      [图片]
                     </span>
                   )}
                   {opt.video_url && (
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      [Video]
+                      [视频]
                     </span>
                   )}
                 </div>

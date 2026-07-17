@@ -3,10 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../../api.ts';
 
 interface Vote {
-  _id: string;
+  id: string;
   name: string;
-  ballotCount: number;
-  createdAt: string;
+  ballot_count: number;
+  created_at: string;
 }
 
 function PlusIcon() {
@@ -67,7 +67,7 @@ export default function AdminDashboard() {
       const res = await api.get('/admin/votes');
       setVotes(res.data);
     } catch {
-      setError('Failed to load votes.');
+      setError('加载投票列表失败');
     } finally {
       setLoading(false);
     }
@@ -78,12 +78,12 @@ export default function AdminDashboard() {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this vote?')) return;
+    if (!window.confirm('确定要删除该投票项目吗？')) return;
     try {
       await api.delete(`/admin/votes/${id}`);
-      setVotes((prev) => prev.filter((v) => v._id !== id));
+      setVotes((prev) => prev.filter((v) => v.id !== id));
     } catch {
-      setError('Failed to delete vote.');
+      setError('删除失败');
     }
   };
 
@@ -99,7 +99,7 @@ export default function AdminDashboard() {
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch {
-      setError('Failed to export vote.');
+      setError('导出失败');
     }
   };
 
@@ -121,15 +121,15 @@ export default function AdminDashboard() {
   return (
     <div className="container">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Votes</h1>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>投票列表</h1>
         <div style={{ display: 'flex', gap: 12 }}>
           <Link to="/admin/create" className="btn-primary">
             <PlusIcon />
-            Create New Vote
+            创建新投票
           </Link>
           <button onClick={handleLogout} className="btn-secondary">
             <LogoutIcon />
-            Logout
+            退出登录
           </button>
         </div>
       </div>
@@ -137,33 +137,33 @@ export default function AdminDashboard() {
       {error && <div className="error-msg">{error}</div>}
 
       {loading ? (
-        <p style={{ color: 'var(--text-secondary)' }}>Loading...</p>
+        <p style={{ color: 'var(--text-secondary)' }}>加载中...</p>
       ) : votes.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-secondary)' }}>
-          <p>No votes yet. Create your first vote to get started.</p>
+          <p>暂无投票项目，点击创建新投票开始</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {votes.map((vote) => (
-            <div key={vote._id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div key={vote.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>{vote.name}</h3>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: 4 }}>
-                  {vote.ballotCount ?? 0} ballots &middot; {formatDate(vote.createdAt)}
+                  {vote.ballot_count ?? 0} 票 &middot; {formatDate(vote.created_at)}
                 </p>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <Link to={`/admin/votes/${vote._id}`} className="btn-secondary btn-sm">
+                <Link to={`/admin/votes/${vote.id}`} className="btn-secondary btn-sm">
                   <EyeIcon />
-                  View
+                  查看
                 </Link>
-                <button onClick={() => handleExport(vote._id)} className="btn-secondary btn-sm">
+                <button onClick={() => handleExport(vote.id)} className="btn-secondary btn-sm">
                   <DownloadIcon />
-                  Export
+                  导出
                 </button>
-                <button onClick={() => handleDelete(vote._id)} className="btn-danger btn-sm">
+                <button onClick={() => handleDelete(vote.id)} className="btn-danger btn-sm">
                   <TrashIcon />
-                  Delete
+                  删除
                 </button>
               </div>
             </div>
