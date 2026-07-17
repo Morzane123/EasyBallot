@@ -90,13 +90,14 @@ export default function AdminDashboard() {
   const handleExport = async (id: string, name: string) => {
     try {
       const res = await api.get(`/admin/votes/${id}/export`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `${name}-投票结果.xlsx`;
       document.body.appendChild(a);
       a.click();
-      a.remove();
+      document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch {
       setError('导出失败');
