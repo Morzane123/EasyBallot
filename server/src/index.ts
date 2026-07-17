@@ -1,9 +1,10 @@
 import dotenv from 'dotenv';
-dotenv.config({ path: '../.env' });
+import path from 'path';
+
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 import express from 'express';
 import cors from 'cors';
-import path from 'path';
 import { getDb } from './db';
 import adminRoutes from './routes/admin';
 import voteRoutes from './routes/votes';
