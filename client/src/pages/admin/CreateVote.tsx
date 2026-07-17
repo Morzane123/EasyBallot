@@ -21,12 +21,11 @@ interface UploadState {
   status: 'uploading' | 'done' | 'error';
 }
 
-const QINIU_UPLOAD_URL = 'https://upload.qiniup.com';
-
 function xhrUpload(
   token: string,
   key: string,
   file: File,
+  uploadUrl: string,
   onProgress: (pct: number) => void
 ): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -37,9 +36,14 @@ function xhrUpload(
 
     const xhr = new XMLHttpRequest();
 
+    let lastPct = 0;
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) {
-        onProgress(Math.round((e.loaded / e.total) * 100));
+        const pct = Math.round((e.loaded / e.total) * 100);
+        if (pct !== lastPct) {
+          lastPct = pct;
+          onProgress(pct);
+        }
       }
     };
 
@@ -52,7 +56,7 @@ function xhrUpload(
     };
 
     xhr.onerror = () => reject(new Error('网络错误'));
-    xhr.open('POST', QINIU_UPLOAD_URL);
+    xhr.open('POST', uploadUrl);
     xhr.send(formData);
   });
 }
@@ -191,11 +195,11 @@ export default function CreateVote() {
 
     try {
       const tokenRes = await api.get('/upload/token');
-      const { token, domain } = tokenRes.data;
+      const { token, domain, uploadUrl } = tokenRes.data;
       const ext = file.name.split('.').pop() || 'jpg';
       const uploadKey = `easyballot/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-      await xhrUpload(token, uploadKey, file, (progress) => {
+      await xhrUpload(token, uploadKey, file, uploadUrl, (progress) => {
         setUploadStates(prev =>
           prev.map(s => s.key === refKey ? { ...s, progress } : s)
         );
@@ -204,9 +208,11 @@ export default function CreateVote() {
       const fileUrl = `https://${domain}/${uploadKey}`;
       updateOption(itemId, optionId, field, fileUrl);
 
-      setUploadStates(prev =>
-        prev.map(s => s.key === refKey ? { ...s, status: 'done', progress: 100 } : s)
-      );
+      setTimeout(() => {
+        setUploadStates(prev =>
+          prev.map(s => s.key === refKey ? { ...s, status: 'done', progress: 100 } : s)
+        );
+      }, 300);
     } catch {
       setError('上传失败，请重试');
       setUploadStates(prev =>

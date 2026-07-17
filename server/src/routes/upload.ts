@@ -4,6 +4,15 @@ import qiniu from 'qiniu';
 
 const router = Router();
 
+// 七牛区域对应的上传地址
+const regionUploadUrls: Record<string, string> = {
+  z0: 'https://upload.qiniup.com',
+  z1: 'https://upload-z1.qiniup.com',
+  z2: 'https://upload-z2.qiniup.com',
+  na0: 'https://upload-na0.qiniup.com',
+  as0: 'https://upload-as0.qiniup.com',
+};
+
 // Get Qiniu upload token
 router.get('/token', adminAuth, (_req: Request, res: Response) => {
   const accessKey = process.env.QINIU_ACCESS_KEY;
@@ -23,9 +32,11 @@ router.get('/token', adminAuth, (_req: Request, res: Response) => {
   const putPolicy = new qiniu.rs.PutPolicy(options);
   const token = putPolicy.uploadToken(mac);
 
-  const domain = process.env.QINIU_DOMAIN || '';
+  const domain = (process.env.QINIU_DOMAIN || '').replace(/^https?:\/\//, '');
+  const region = process.env.QINIU_REGION || 'z0';
+  const uploadUrl = regionUploadUrls[region] || regionUploadUrls.z0;
 
-  res.json({ token, domain });
+  res.json({ token, domain, uploadUrl });
 });
 
 export default router;
