@@ -17,6 +17,7 @@ EasyBallot 视频处理上传脚本
 import os
 import sys
 import json
+import time
 import shutil
 import tempfile
 import subprocess
@@ -62,7 +63,7 @@ def detect_gpu_encoder():
         # 直接尝试用 NVENC 编码一帧测试是否真正可用
         if "h264_nvenc" in output:
             test = subprocess.run(
-                ["ffmpeg", "-hide_banner", "-f", "lavfi", "-i", "color=c=black:s=2x2:d=0.1",
+                ["ffmpeg", "-hide_banner", "-f", "lavfi", "-i", "color=c=black:s=64x64:d=0.1",
                  "-c:v", "h264_nvenc", "-f", "null", "-"],
                 capture_output=True, text=True, timeout=15
             )
@@ -76,7 +77,7 @@ def detect_gpu_encoder():
 
         if "h264_amf" in output:
             test = subprocess.run(
-                ["ffmpeg", "-hide_banner", "-f", "lavfi", "-i", "color=c=black:s=2x2:d=0.1",
+                ["ffmpeg", "-hide_banner", "-f", "lavfi", "-i", "color=c=black:s=64x64:d=0.1",
                  "-c:v", "h264_amf", "-f", "null", "-"],
                 capture_output=True, text=True, timeout=15
             )
@@ -86,7 +87,7 @@ def detect_gpu_encoder():
 
         if "h264_qsv" in output:
             test = subprocess.run(
-                ["ffmpeg", "-hide_banner", "-f", "lavfi", "-i", "color=c=black:s=2x2:d=0.1",
+                ["ffmpeg", "-hide_banner", "-f", "lavfi", "-i", "color=c=black:s=64x64:d=0.1",
                  "-c:v", "h264_qsv", "-f", "null", "-"],
                 capture_output=True, text=True, timeout=15
             )
@@ -238,23 +239,26 @@ def process_video(input_path: str, output_dir: str, encoder: str, encoder_label:
 
 
 # ---------- 七牛上传 ----------
-def upload_file(local_path: str, qiniu_key: str) -> tuple:
+def upload_file(local_path: str, qiniu_key: str, retries=3) -> tuple:
     """使用七牛 Python SDK 上传，支持断点续传、分片上传、自动重试"""
-    from qiniu import Auth, put_file
+    from qiniu import Auth, put_file_v2
 
     auth = Auth(QINIU_ACCESS_KEY, QINIU_SECRET_KEY)
     token = auth.upload_token(QINIU_BUCKET, qiniu_key, 3600)
 
-    # put_file 自动判断文件大小选择直传或分片上传
-    ret, info = put_file(
-        token, qiniu_key, local_path,
-        params={"x:a": "easyballot"},
-        mime_type=None,
-    )
+    last_err = None
+    for attempt in range(1, retries + 1):
+        ret, info = put_file_v2(
+            token, qiniu_key, local_path,
+            bucket=QINIU_BUCKET,
+        )
+        if ret is not None:
+            return True, ret.get("key", qiniu_key)
+        last_err = str(info)
+        if attempt < retries:
+            time.sleep(2)
 
-    if ret is not None:
-        return True, ret.get("key", qiniu_key)
-    return False, str(info)
+    return False, last_err or "unknown"
 
 
 # ---------- 入口 ----------
