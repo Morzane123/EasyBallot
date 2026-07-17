@@ -15,6 +15,48 @@ interface VoteItemInput {
   options: OptionInput[];
 }
 
+interface UploadState {
+  key: string;
+  progress: number;
+  status: 'uploading' | 'done' | 'error';
+}
+
+const QINIU_UPLOAD_URL = 'https://upload.qiniup.com';
+
+function xhrUpload(
+  token: string,
+  key: string,
+  file: File,
+  onProgress: (pct: number) => void
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append('token', token);
+    formData.append('key', key);
+    formData.append('file', file);
+
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        resolve(xhr.responseText);
+      } else {
+        reject(new Error('上传失败: ' + xhr.status));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('网络错误'));
+    xhr.open('POST', QINIU_UPLOAD_URL);
+    xhr.send(formData);
+  });
+}
+
 function PlusIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -71,10 +113,12 @@ export default function CreateVote() {
   const [items, setItems] = useState<VoteItemInput[]>([createItem()]);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [uploading, setUploading] = useState<string | null>(null);
+  const [uploadStates, setUploadStates] = useState<UploadState[]>([]);
   const imageInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const videoInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const navigate = useNavigate();
+
+  const getUploadState = (key: string) => uploadStates.find(s => s.key === key);
 
   const addItem = () => {
     setItems((prev) => [...prev, createItem()]);
@@ -142,27 +186,32 @@ export default function CreateVote() {
     field: 'image_url' | 'video_url',
     refKey: string
   ) => {
-    setUploading(refKey);
+    const initState: UploadState = { key: refKey, progress: 0, status: 'uploading' };
+    setUploadStates(prev => [...prev.filter(s => s.key !== refKey), initState]);
+
     try {
       const tokenRes = await api.get('/upload/token');
-      const { token, domain, key: uploadKey } = tokenRes.data;
+      const { token, domain } = tokenRes.data;
+      const ext = file.name.split('.').pop() || 'jpg';
+      const uploadKey = `easyballot/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-      const formData = new FormData();
-      formData.append('token', token);
-      formData.append('key', uploadKey);
-      formData.append('file', file);
-
-      const uploadDomain = domain.startsWith('http') ? domain : `https://${domain}`;
-      await api.post(uploadDomain, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      await xhrUpload(token, uploadKey, file, (progress) => {
+        setUploadStates(prev =>
+          prev.map(s => s.key === refKey ? { ...s, progress } : s)
+        );
       });
 
-      const fileUrl = `${uploadDomain}/${uploadKey}`;
+      const fileUrl = `https://${domain}/${uploadKey}`;
       updateOption(itemId, optionId, field, fileUrl);
+
+      setUploadStates(prev =>
+        prev.map(s => s.key === refKey ? { ...s, status: 'done', progress: 100 } : s)
+      );
     } catch {
       setError('上传失败，请重试');
-    } finally {
-      setUploading(null);
+      setUploadStates(prev =>
+        prev.map(s => s.key === refKey ? { ...s, status: 'error' } : s)
+      );
     }
   };
 
@@ -350,11 +399,13 @@ export default function CreateVote() {
                             type="button"
                             onClick={() => triggerFileInput('image', `img-${item.id}-${opt.id}`)}
                             className="btn-secondary btn-sm"
-                            disabled={uploading === `img-${item.id}-${opt.id}`}
+                            disabled={getUploadState(`img-${item.id}-${opt.id}`)?.status === 'uploading'}
                             title="上传图片"
                           >
                             <UploadIcon />
-                            {uploading === `img-${item.id}-${opt.id}` ? '...' : ''}
+                            {getUploadState(`img-${item.id}-${opt.id}`)?.status === 'uploading'
+                              ? getUploadState(`img-${item.id}-${opt.id}`)?.progress + '%'
+                              : ''}
                           </button>
                           <input
                             ref={(el) => {
@@ -395,11 +446,13 @@ export default function CreateVote() {
                             type="button"
                             onClick={() => triggerFileInput('video', `vid-${item.id}-${opt.id}`)}
                             className="btn-secondary btn-sm"
-                            disabled={uploading === `vid-${item.id}-${opt.id}`}
+                            disabled={getUploadState(`vid-${item.id}-${opt.id}`)?.status === 'uploading'}
                             title="上传视频"
                           >
                             <UploadIcon />
-                            {uploading === `vid-${item.id}-${opt.id}` ? '...' : ''}
+                            {getUploadState(`vid-${item.id}-${opt.id}`)?.status === 'uploading'
+                              ? getUploadState(`vid-${item.id}-${opt.id}`)?.progress + '%'
+                              : ''}
                           </button>
                           <input
                             ref={(el) => {
@@ -431,6 +484,27 @@ export default function CreateVote() {
                         视频: {opt.video_url.length > 60
                           ? opt.video_url.slice(0, 60) + '...'
                           : opt.video_url}
+                      </div>
+                    )}
+
+                    {(getUploadState(`img-${item.id}-${opt.id}`)?.status === 'uploading' || getUploadState(`vid-${item.id}-${opt.id}`)?.status === 'uploading') && (
+                      <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {getUploadState(`img-${item.id}-${opt.id}`)?.status === 'uploading' && (
+                          <div className="upload-progress">
+                            <span>图片上传中 {getUploadState(`img-${item.id}-${opt.id}`)?.progress}%</span>
+                            <div className="progress-bar" style={{ flex: 1 }}>
+                              <div className="progress-bar-fill" style={{ width: getUploadState(`img-${item.id}-${opt.id}`)?.progress + '%' }} />
+                            </div>
+                          </div>
+                        )}
+                        {getUploadState(`vid-${item.id}-${opt.id}`)?.status === 'uploading' && (
+                          <div className="upload-progress">
+                            <span>视频上传中 {getUploadState(`vid-${item.id}-${opt.id}`)?.progress}%</span>
+                            <div className="progress-bar" style={{ flex: 1 }}>
+                              <div className="progress-bar-fill" style={{ width: getUploadState(`vid-${item.id}-${opt.id}`)?.progress + '%' }} />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
