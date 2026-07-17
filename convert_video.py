@@ -134,6 +134,8 @@ def get_video_info(input_path: str) -> dict:
         "duration": float(info.get("format", {}).get("duration", 0)),
         "bitrate": int(info.get("format", {}).get("bit_rate", 0)),
         "codec": video_stream.get("codec_name", "unknown"),
+        "pix_fmt": video_stream.get("pix_fmt", ""),
+        "is_10bit": "10" in (video_stream.get("pix_fmt") or "") or video_stream.get("bits_per_raw_sample") == "10",
     }
 
 
@@ -150,11 +152,14 @@ def process_video(input_path: str, output_dir: str, encoder: str, encoder_label:
         scale_w = max(2, int(orig_w * TARGET_HEIGHT / orig_h) // 2 * 2)
         scale_h = TARGET_HEIGHT
         print(f"[1/3] 分辨率: {orig_w}x{orig_h} -> {scale_w}x{scale_h}")
-        scale_filter = f"scale={scale_w}:{scale_h}"
+        scale_filter = f"scale={scale_w}:{scale_h},format=yuv420p"
     else:
         scale_w, scale_h = orig_w, orig_h
         print(f"[1/3] 分辨率无需压缩（已 <= 720p）")
-        scale_filter = "scale=trunc(iw/2)*2:trunc(ih/2)*2"
+        scale_filter = "scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p"
+
+    if video_info.get("is_10bit"):
+        print(f"[INFO] 源视频为 10-bit ({video_info.get('pix_fmt')})，GPU 编码器需转 8-bit，已自动处理")
 
     m3u8_path = os.path.join(output_dir, "index.m3u8")
     ts_pattern = os.path.join(output_dir, "segment_%03d.ts")
@@ -200,6 +205,8 @@ def process_video(input_path: str, output_dir: str, encoder: str, encoder_label:
         "ffmpeg", "-y",
         *hwaccel_args,
         "-i", input_path,
+        "-map", "0:v:0",
+        "-map", "0:a:0",
         "-vf", scale_filter,
         *encoder_args,
         "-c:a", "aac",
