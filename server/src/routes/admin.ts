@@ -151,7 +151,8 @@ router.get('/votes/:id/export', adminAuth, async (req: Request, res: Response) =
   });
 
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', `attachment; filename="vote-${vote.name}-results.xlsx"`);
+  const safeName = encodeURIComponent(`${vote.name}-投票结果.xlsx`);
+  res.setHeader('Content-Disposition', `attachment; filename="vote-results.xlsx"; filename*=UTF-8''${safeName}`);
   await workbook.xlsx.write(res);
   res.end();
 });
